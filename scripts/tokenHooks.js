@@ -1,4 +1,10 @@
-import { MODULE_ID, stopSounds, playSounds, refreshSoundPosition } from '../token-sounds.js';
+import {
+  MODULE_ID,
+  stopSounds,
+  playSounds,
+  refreshSoundPosition,
+  deleteToken,
+} from '../token-sounds.js';
 import AmbientSoundCustomConfig from '../config/ambientSoundCustomConfig.js';
 
 export function registerTokenHooks() {
@@ -15,11 +21,10 @@ export function registerTokenHooks() {
   });
 
   Hooks.on('deleteToken', (token, opts, userId) => {
-    if (game.user.id === userId) stopSounds(token);
+    if (game.user.id === userId) deleteToken(token);
   });
 
   Hooks.on('updateToken', async (token, change, options, userId) => {
-    console.log(change, userId);
     if (game.user.id === userId) {
       const flags = change.flags?.[MODULE_ID];
       if (flags) {
@@ -67,8 +72,10 @@ export function registerTokenHooks() {
     const sounds = actor.getFlag(MODULE_ID, 'sounds');
     if (!game.user.isGM && isEmpty(sounds)) return;
 
+    const playing = !isEmpty(getProperty(token, `flags.${MODULE_ID}.playing`));
+
     const button = $(`
-      <div class="control-icon" data-action="token-sounds">
+      <div class="control-icon token-sounds ${playing ? 'playing' : ''}" data-action="token-sounds">
         <i class="fas fa-waveform-path"></i>
       </div>
     `);

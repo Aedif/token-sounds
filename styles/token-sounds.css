@@ -32,11 +32,15 @@
   opacity: 0.5;
 }
 
-.token-sounds-wrapper .sound-control .fa-spin {
+.token-sounds-wrapper .sound-control .fa-volume {
   z-index: 0;
   top: 12px;
-  left: 12px;
+  left: 8px;
   color: greenyellow;
   position: absolute;
   pointer-events: none;
+}
+
+.control-icon.token-sounds.playing {
+  color: greenyellow;
 }

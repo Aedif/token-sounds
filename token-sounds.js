@@ -12,7 +12,7 @@ Hooks.on('init', () => {
     config: false,
     type: Array,
     default: [],
-    onChange: async (val) => {
+    onChange: (val) => {
       SETTINGS.nonRepeat = val;
 
       const isResponsibleGM = !game.users
@@ -106,6 +106,15 @@ export function stopSounds(token, soundIds) {
   }
 }
 
+export function deleteToken(token) {
+  const attached = token.getFlag(MODULE_ID, 'attached') ?? {};
+
+  for (const [soundId, ambientSoundId] of Object.entries(attached)) {
+    const ambientSound = token.parent?.sounds.get(ambientSoundId);
+    if (ambientSound) deleteSoundDocument(ambientSound, token, soundId);
+  }
+}
+
 export function deleteSound(token, soundId, ambientSoundId) {
   const ambientSound = token.parent?.sounds.get(ambientSoundId);
   if (ambientSound) deleteSoundDocument(ambientSound, token, soundId);
@@ -129,28 +138,26 @@ function deleteSoundDocument(doc, token, soundId) {
 }
 
 function endNonRepeatEarly(token, soundId) {
-  const nonRepeat = SETTINGS.nonRepeat;
-  const newRepeat = nonRepeat.filter(
-    (o) => o.soundId !== soundId && o.tokenId !== token.id && o.sceneId !== token.parent.id
+  const newRepeat = SETTINGS.nonRepeat.filter(
+    (o) => o.soundId !== soundId || o.tokenId !== token.id || o.sceneId !== token.parent.id
   );
-  if (nonRepeat.length !== newRepeat.length) game.settings.set(MODULE_ID, 'nonRepeat', newRepeat);
+  if (SETTINGS.nonRepeat.length !== newRepeat.length) {
+    game.settings.set(MODULE_ID, 'nonRepeat', newRepeat);
+  }
 }
 
 function _processTick() {
   if (SETTINGS.nonRepeat.length) {
     const currentTime = Date.now();
-    const newRepeat = [];
-    for (const n of SETTINGS.nonRepeat) {
-      if (n.endTime > currentTime) newRepeat.push(n);
-      else {
-        console.log('PROCESS TICK, REMOVING');
-        const token = game.scenes.get(n.sceneId)?.tokens.get(n.tokenId);
-        if (token) token.update({ [`flags.${MODULE_ID}.playing.-=${n.soundId}`]: null });
-      }
-    }
-    if (newRepeat.length < SETTINGS.nonRepeat.length) {
-      SETTINGS.nonRepeat = newRepeat;
-      game.settings.set(MODULE_ID, 'nonRepeat', newRepeat);
+
+    const nR = SETTINGS.nonRepeat.find((n) => n.endTime < currentTime);
+    if (nR) {
+      canvas.app.ticker.remove(_processTick);
+      const token = game.scenes.get(nR.sceneId)?.tokens.get(nR.tokenId);
+      if (token) token.update({ [`flags.${MODULE_ID}.playing.-=${nR.soundId}`]: null });
+
+      SETTINGS.nonRepeat = SETTINGS.nonRepeat.filter((n) => n.endTime > currentTime);
+      game.settings.set(MODULE_ID, 'nonRepeat', SETTINGS.nonRepeat);
     }
   } else {
     canvas.app.ticker.remove(_processTick);
@@ -168,9 +175,8 @@ async function setNonRepeatTicker(token, soundId, endTime) {
     return;
   }
 
-  const nonRepeat = game.settings.get(MODULE_ID, 'nonRepeat');
-  nonRepeat.push({ sceneId: token.parent.id, tokenId: token.id, soundId, endTime });
-  await game.settings.set(MODULE_ID, 'nonRepeat', nonRepeat);
+  SETTINGS.nonRepeat.push({ sceneId: token.parent.id, tokenId: token.id, soundId, endTime });
+  await game.settings.set(MODULE_ID, 'nonRepeat', SETTINGS.nonRepeat);
 }
 
 function startTicker() {
