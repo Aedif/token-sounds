@@ -149,7 +149,6 @@ async function _onButtonClick(event, token, hud) {
 }
 
 function _onSoundRightClick(event, dataSource) {
-  event.stopPropagation();
   if (!dataSource) return;
   const soundId = $(event.target).closest('.sound').data('sound-id');
   const sound = (dataSource.getFlag(MODULE_ID, 'sounds') ?? {})[soundId];

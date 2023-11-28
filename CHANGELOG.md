@@ -1,3 +1,7 @@
+# 1.1.2
+
+- Fixed browser context menu popping up upon right-clicking sounds in the Token HUD
+
 # 1.1.1
 
 - Fixed Right-click on sounds causing Player Edit lock to toggle
