@@ -1,8 +1,8 @@
 <div class="token-sounds-wrapper">
   {{#each sounds}}
-  <div class="sound-control sound" data-sound-id="{{this.soundId}}" title="{{this.description}}"><img src="{{this.img}}">{{#if playing}}<i class="fa-solid fa-volume fa-beat"></i>{{/if}}</div>
+  <div class="sound-control sound {{#if editable}}editable{{/if}}" data-sound-id="{{this.soundId}}" title="{{this.description}}"><img src="{{this.img}}">{{#if playing}}<i class="fa-solid fa-volume fa-beat"></i>{{/if}}</div>
   {{/each}}
-  {{#if isGM}}
+  {{#if editable}}
   <div class="sound-control add-sound" title="ADD SOUND"><img src="modules/aedifs-token-sounds/img/plus-circle-solid.svg"></div>
   {{/if}}
 </div>

@@ -2,10 +2,27 @@ import { MODULE_ID } from '../token-sounds.js';
 
 export default class AmbientSoundCustomConfig extends AmbientSoundConfig {
   constructor(data, dataSource, create = true) {
-    super(new AmbientSoundDocument(deepClone(data)), {});
+    const sound = new AmbientSoundDocument(deepClone(data));
+
+    // Trick the sheet into being editable by players
+    Object.defineProperty(sound, 'isOwner', {
+      get: function () {
+        return true;
+      },
+    });
+
+    super(sound, {});
     this.create = create;
     this.soundData = data;
     this.dataSource = dataSource;
+  }
+
+  /**
+   * OVERRIDE - Don't restrict access to players
+   * @returns
+   */
+  _canUserView(user) {
+    return true;
   }
 
   get title() {

@@ -57,6 +57,7 @@ Hooks.on('init', () => {
     } else if (message.handlerName === 'sound' && message.type === 'DELETE') {
       const ambientSound = game.scenes.get(args.sceneId)?.sounds.get(args.ambientSoundId);
       if (ambientSound) ambientSound.delete();
+      endNonRepeatEarly(args.tokenId, args.soundId, args.sceneId);
     } else if (message.handlerName === 'sound' && message.type === 'POSITIONS') {
       const scene = game.scenes.get(args.sceneId);
       if (scene) refreshSoundPosition(scene.tokens.get(args.tokenId));
@@ -125,21 +126,21 @@ function deleteSoundDocument(doc, token, soundId) {
   if (!game.user.isGM) {
     const message = {
       handlerName: 'sound',
-      args: { ambientSoundId: doc.id, sceneId: canvas.scene.id },
+      args: { ambientSoundId: doc.id, tokenId: token.id, sceneId: token.parent.id, soundId },
       type: 'DELETE',
     };
     game.socket?.emit(`module.${MODULE_ID}`, message);
     return;
   }
 
-  endNonRepeatEarly(token, soundId);
+  endNonRepeatEarly(token.id, soundId, token.parent.id);
 
   doc.delete();
 }
 
-function endNonRepeatEarly(token, soundId) {
+function endNonRepeatEarly(tokenId, soundId, sceneId) {
   const newRepeat = SETTINGS.nonRepeat.filter(
-    (o) => o.soundId !== soundId || o.tokenId !== token.id || o.sceneId !== token.parent.id
+    (o) => o.soundId !== soundId || o.tokenId !== tokenId || o.sceneId !== sceneId
   );
   if (SETTINGS.nonRepeat.length !== newRepeat.length) {
     game.settings.set(MODULE_ID, 'nonRepeat', newRepeat);

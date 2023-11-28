@@ -2,9 +2,9 @@
   "id": "aedifs-token-sounds",
   "title": "Sound of Token",
   "description": "Play ambient sounds through tokens.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "manifest": "https://github.com/Aedif/token-sounds/releases/latest/download/module.json",
-  "download": "https://github.com/Aedif/token-sounds/releases/download/1.0.0/aedifs-token-sounds.zip",
+  "download": "https://github.com/Aedif/token-sounds/releases/download/1.1.0/aedifs-token-sounds.zip",
   "compatibility": {
     "minimum": 11,
     "verified": 11

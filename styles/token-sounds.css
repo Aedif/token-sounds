@@ -2,7 +2,7 @@
   visibility: hidden;
   position: absolute;
   left: 65px;
-  top: 0;
+  top: -132px;
   display: grid;
   padding: 3px;
   box-sizing: content-box;
@@ -34,13 +34,26 @@
 
 .token-sounds-wrapper .sound-control .fa-volume {
   z-index: 0;
-  top: 12px;
+  top: 10px;
   left: 8px;
   color: greenyellow;
   position: absolute;
   pointer-events: none;
 }
 
+.control-icon.token-sounds {
+  position: relative;
+}
+
 .control-icon.token-sounds.playing {
   color: greenyellow;
+}
+
+.control-icon.token-sounds .player-edit {
+  top: 1px;
+  left: 31px;
+  color: green;
+  position: absolute;
+  pointer-events: none;
+  font-size: 0.4em;
 }

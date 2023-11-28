@@ -16,6 +16,13 @@ export function registerTokenHooks() {
     }
   });
 
+  // Making sure new tokens don't point to the previous token's attached AmbientSounds
+  Hooks.on('preCreateToken', (token, data, options, userId) => {
+    if (game.user.id === userId && data.flags?.[MODULE_ID]?.attached) {
+      token.updateSource({ [`flags.${MODULE_ID}.-=attached`]: null });
+    }
+  });
+
   Hooks.on('createToken', (token, opts, userId) => {
     if (game.user.id === userId) playSounds(token);
   });
@@ -70,17 +77,32 @@ export function registerTokenHooks() {
     const actor = game.actors.get(token.actorId);
     if (!actor) return;
     const sounds = actor.getFlag(MODULE_ID, 'sounds');
-    if (!game.user.isGM && isEmpty(sounds)) return;
+    const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
+    if (!(game.user.isGM || allowPlayerEdit) && isEmpty(sounds)) return;
 
     const playing = !isEmpty(getProperty(token, `flags.${MODULE_ID}.playing`));
+    const title = game.user.isGM ? 'Right-click to enable Player editing.' : '';
 
     const button = $(`
-      <div class="control-icon token-sounds ${playing ? 'playing' : ''}" data-action="token-sounds">
+      <div class="control-icon token-sounds ${
+        playing ? 'playing' : ''
+      }" data-action="token-sounds" title="${title}">
         <i class="fas fa-waveform-path"></i>
+        ${
+          allowPlayerEdit && game.user.isGM
+            ? '<i class="player-edit fa-solid fa-unlock-keyhole fa-2xs"></i>'
+            : ''
+        }
       </div>
     `);
     html.find('div.right').last().append(button);
     button.click((event) => _onButtonClick(event, token, hud));
+    if (game.user.isGM) {
+      button.contextmenu((event) => {
+        const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
+        actor.setFlag(MODULE_ID, 'allowPlayerEdit', !allowPlayerEdit);
+      });
+    }
 
     if (hud._soundBoard.id === hud.object.id && hud._soundBoard.active) {
       button.trigger('click');
@@ -119,7 +141,7 @@ async function _onButtonClick(event, token, hud) {
 
   wrapper.find('.sound').on('click', (event) => _onSoundClick(event, token));
   wrapper
-    .find('.sound')
+    .find('.sound.editable')
     .on('contextmenu', (event) => _onSoundRightClick(event, game.actors.get(token.actorId)));
   wrapper
     .find('.add-sound')
@@ -153,10 +175,14 @@ async function renderMenu(token) {
     s.playing = s.soundId in playing;
   });
 
+  const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
+
+  const editable = game.user.isGM || allowPlayerEdit;
+
   const menu = $(
     await renderTemplate('modules/aedifs-token-sounds/templates/soundBoard.html', {
       sounds,
-      isGM: game.user.isGM,
+      editable,
     })
   );
   return menu;
