@@ -87,7 +87,7 @@ export function registerTokenHooks() {
       <div class="control-icon token-sounds ${
         playing ? 'playing' : ''
       }" data-action="token-sounds" title="${title}">
-        <i class="fas fa-waveform-path"></i>
+        <i class="toggle-edit fas fa-waveform-path"></i>
         ${
           allowPlayerEdit && game.user.isGM
             ? '<i class="player-edit fa-solid fa-unlock-keyhole fa-2xs"></i>'
@@ -98,7 +98,7 @@ export function registerTokenHooks() {
     html.find('div.right').last().append(button);
     button.click((event) => _onButtonClick(event, token, hud));
     if (game.user.isGM) {
-      button.contextmenu((event) => {
+      button.find('.toggle-edit').contextmenu((event) => {
         const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
         actor.setFlag(MODULE_ID, 'allowPlayerEdit', !allowPlayerEdit);
       });

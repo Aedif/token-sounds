@@ -1,3 +1,7 @@
+# 1.1.1
+
+- Fixed Right-click on sounds causing Player Edit lock to toggle
+
 # 1.1.0
 
 - Token HUD button can now be Right-click to toggle Player editing
