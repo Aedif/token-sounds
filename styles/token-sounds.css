@@ -23,6 +23,19 @@
   position: relative;
 }
 
+.token-sounds-wrapper .sound {
+  border-left: 1px solid rgba(0, 0, 0, 0);
+  border-right: 1px solid rgba(0, 0, 0, 0);
+}
+
+.token-sounds-wrapper .sound.drag-left {
+  border-left: 1px solid orange;
+}
+
+.token-sounds-wrapper .sound.drag-right {
+  border-right: 1px solid orange;
+}
+
 .token-sounds-wrapper .sound-control img {
   width: 48px;
   height: 48px;

@@ -139,13 +139,51 @@ async function _onButtonClick(event, token, hud) {
     wrapper.removeClass('active');
   }
 
-  wrapper.find('.sound').on('click', (event) => _onSoundClick(event, token));
   wrapper
     .find('.sound.editable')
     .on('contextmenu', (event) => _onSoundRightClick(event, game.actors.get(token.actorId)));
   wrapper
     .find('.add-sound')
     .on('click', (event) => _onAddSoundClick(event, game.actors.get(token.actorId)));
+
+  const sounds = wrapper.find('.sound');
+  sounds.on('click', (event) => _onSoundClick(event, token));
+
+  // ==================
+  // Dragging and sorting sounds
+  let draggedSoundId;
+  sounds.on('dragstart', (event) => {
+    draggedSoundId = $(event.target).closest('.sound').data('soundId');
+  });
+  sounds.on('dragover', (event) => {
+    const sound = $(event.target).closest('.sound');
+    if (sound.data('soundId') === draggedSoundId) return;
+
+    // Determine if mouse is hovered to the left or right
+    var domRect = event.currentTarget.getBoundingClientRect();
+    let prc = event.offsetX / domRect.width;
+    if (prc < 0.2) {
+      sound.removeClass('drag-right').addClass('drag-left');
+    } else {
+      sound.removeClass('drag-left').addClass('drag-right');
+    }
+  });
+  sounds.on('dragleave', (event) => {
+    $(event.target).closest('.sound').removeClass('drag-left').removeClass('drag-right');
+  });
+  sounds.on('drop', (event) => {
+    const sound = $(event.target).closest('.sound');
+    _onSoundOrder(
+      draggedSoundId,
+      sound.data('soundId'),
+      game.actors.get(token.actorId),
+      sound.hasClass('drag-left')
+    );
+
+    $(event.target).closest('.sound').removeClass('drag-left').removeClass('drag-right');
+  });
+  // End of dragging and sorting sounds
+  // ===================================
 }
 
 function _onSoundRightClick(event, dataSource) {
@@ -168,7 +206,9 @@ async function renderMenu(token) {
 
   const actor = game.actors.get(token.actorId);
   if (!actor) return;
-  const sounds = Object.values(deepClone(actor.getFlag(MODULE_ID, 'sounds') ?? {}));
+  const sounds = Object.values(deepClone(actor.getFlag(MODULE_ID, 'sounds') ?? {})).sort(
+    (s1, s2) => (s1.sort ?? 0) - (s2.sort ?? 0)
+  );
 
   sounds.forEach((s) => {
     s.playing = s.soundId in playing;
@@ -203,22 +243,24 @@ function _onSoundClick(event, token) {
   token.update(update);
 }
 
-// function _deactivateTokenVariantsSideSelector(event) {
-//     const controlIcon = $(event.target).closest('.control-icon');
-//     const dataAction = controlIcon.attr('data-action');
+function _onSoundOrder(sourceId, targetId, actor, sortBefore = false) {
+  if (!(sourceId && targetId && actor)) return;
+  if (sourceId === targetId) return;
 
-//     switch (dataAction) {
-//       case 'effects':
-//         break; // Effects button
-//       case 'thwildcard-selector':
-//         break; // Token HUD Wildcard module button
-//       default:
-//         return;
-//     }
+  const sounds = Object.values(actor.getFlag(MODULE_ID, 'sounds') ?? {});
 
-//     $(event.target)
-//       .closest('div.right')
-//       .find('.control-icon[data-action="token-variants-side-selector"]')
-//       .removeClass('active');
-//     $(event.target).closest('div.right').find('.token-sounds-wrapper').removeClass('active');
-//   }
+  const source = sounds.find((s) => s.soundId === sourceId);
+  const target = sounds.find((s) => s.soundId === targetId);
+  if (!(source && target)) return;
+
+  const siblings = sounds.filter((s) => s.soundId !== sourceId);
+  const result = SortingHelpers.performIntegerSort(source, { target, siblings, sortBefore });
+
+  if (result.length) {
+    const update = {};
+    for (const r of result) {
+      update[r.target.soundId] = r.update;
+    }
+    actor.update({ [`flags.${MODULE_ID}.sounds`]: update });
+  }
+}

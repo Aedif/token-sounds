@@ -1,3 +1,7 @@
+# 1.2.0
+
+- Sounds can now be sorted by dragging and dropping them on other sounds
+
 # 1.1.2
 
 - Fixed browser context menu popping up upon right-clicking sounds in the Token HUD
