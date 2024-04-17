@@ -1,3 +1,7 @@
+# 1.2.1
+
+- Fixed non-audio files causing UI freeze-up
+
 # 1.2.0
 
 - Sounds can now be sorted by dragging and dropping them on other sounds
