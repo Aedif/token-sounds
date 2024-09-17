@@ -1,3 +1,7 @@
+# 2.0.0
+
+- v12 support
+
 # 1.2.1
 
 - Fixed non-audio files causing UI freeze-up

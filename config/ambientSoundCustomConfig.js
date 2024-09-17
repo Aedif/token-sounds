@@ -1,27 +1,46 @@
 import { MODULE_ID } from '../token-sounds.js';
 
-export default class AmbientSoundCustomConfig extends AmbientSoundConfig {
+export async function openCustomConfig(data, dataSource, create = true) {
+  return new AmbientSoundCustomConfig(data, dataSource, create).render(true);
+}
+
+class AmbientSoundCustomConfig extends AmbientSoundConfig {
   constructor(data, dataSource, create = true) {
-    const sound = new AmbientSoundDocument(deepClone(data));
-
-    // Trick the sheet into being editable by players
-    Object.defineProperty(sound, 'isOwner', {
-      get: function () {
-        return true;
+    const sound = new AmbientSoundDocument(foundry.utils.deepClone(data), { parent: canvas.scene });
+    const options = {
+      document: sound,
+      actions: {
+        sotSubmit: AmbientSoundCustomConfig.submit,
+        sotRemove: AmbientSoundCustomConfig.remove,
       },
-    });
+    };
 
-    super(sound, {});
+    // // Trick the sheet into being editable by players
+    // Object.defineProperty(sound, 'isOwner', {
+    //   get: function () {
+    //     return true;
+    //   },
+    // });
+
+    super(options);
     this.create = create;
     this.soundData = data;
     this.dataSource = dataSource;
   }
 
-  /**
-   * OVERRIDE - Don't restrict access to players
-   * @returns
-   */
-  _canUserView(user) {
+  static async submit() {
+    let formData = this._getSubmitData();
+    const update = { [`flags.${MODULE_ID}.sounds.${formData.soundId}`]: foundry.utils.expandObject(formData) };
+    this.dataSource.update(update);
+  }
+
+  static async remove() {
+    let formData = this._getSubmitData();
+    const update = { [`flags.${MODULE_ID}.sounds.-=${formData.soundId}`]: null };
+    this.dataSource.update(update);
+  }
+
+  get isVisible() {
     return true;
   }
 
@@ -30,29 +49,75 @@ export default class AmbientSoundCustomConfig extends AmbientSoundConfig {
     else return 'Update Sound';
   }
 
-  async _updateObject(event, formData) {
-    const action = event.submitter?.value;
-    formData = expandObject(formData);
-
-    const update = {};
-    if (action === 'create' || action === 'update') {
-      update[formData.soundId] = formData;
-    } else if (action === 'remove') {
-      update['-=' + formData.soundId] = null;
-    }
-
-    const temp = { flags: {} };
-    temp.flags[MODULE_ID] = { sounds: update };
-    this.dataSource.update(temp);
+  get id() {
+    return `ambient-sound-custom-config-${this.document.id}`;
   }
 
-  async activateListeners(html) {
-    // Remove x and y fields and submit button
-    html.find('[name="x"], [name="y"]').closest('.form-group').remove();
-    html.find('button[type="submit"]').remove();
+  _onRender(...args) {
+    const html = $(this.element);
 
+    // Remove unnecessary controls
+    html.find('[name="x"], [name="y"]').closest('.form-group').remove();
+
+    this.insertAdditionalControls(html);
+
+    html.find('.file-picker[data-target="img"]').on('click', () => {
+      new FilePicker({
+        type: 'image',
+        callback: (path) => {
+          html.find('[name="img"]').val(path).trigger('change');
+        },
+      }).render();
+    });
+
+    return super._onRender(...args);
+  }
+
+  _getSubmitData() {
+    const form = this.element;
+    const formData = new FormDataExtended(form);
+    const submitData = foundry.utils.expandObject(formData.object);
+    return submitData;
+  }
+
+  _getFormBody(html) {
+    return html.find('.form-body');
+  }
+
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+
+    const buttons = [];
+    if (this.create) {
+      buttons.push({
+        type: 'submit',
+        icon: 'far fa-save',
+        label: 'Create',
+        action: 'sotSubmit',
+      });
+    } else {
+      buttons.push({
+        type: 'submit',
+        icon: 'far fa-save',
+        label: 'Update',
+        action: 'sotSubmit',
+      });
+
+      buttons.push({
+        type: 'submit',
+        icon: 'far fa-trash',
+        label: 'Remove',
+        action: 'sotRemove',
+      });
+    }
+
+    context.buttons = buttons;
+    return context;
+  }
+
+  async insertAdditionalControls(html) {
     const icon = this.soundData.img ?? 'icons/svg/sound.svg';
-    const soundId = this.soundData.soundId ?? randomID();
+    const soundId = this.soundData.soundId ?? foundry.utils.randomID();
     const description = this.soundData.description ?? '';
     const repeat = this.soundData.repeat;
 
@@ -62,7 +127,10 @@ export default class AmbientSoundCustomConfig extends AmbientSoundConfig {
     }
 
     // Insert img, description and hidden id fields
-    html.prepend(`
+    const formBody = this._getFormBody(html);
+    formBody.prepend(`
+  <fieldset>
+    <legend>Sound of Token</legend>
     <input type="text" name="soundId" value="${soundId}" hidden>
     <div class="form-group">
       <label>Icon</label>
@@ -84,42 +152,17 @@ export default class AmbientSoundCustomConfig extends AmbientSoundConfig {
         <input type="checkbox" name="repeat" data-dtype="Boolean" ${repeat ? 'checked' : ''}>
       </div>
     </div>   
+  </fieldset>
 `);
 
-    // Insert action type appropriate buttons
-    let buttons;
-    if (this.create) {
-      buttons = $(
-        '<button type="submit" value="create"><i class="far fa-save"></i> Create</button>'
-      );
-    } else {
-      buttons = $(
-        '<button type="submit" value="update"><i class="far fa-save"></i> Update</button><button type="submit" value="remove"><i class="far fa-trash"></i> Remove</button>'
-      );
-    }
-
     if (tvaButton) {
-      html.find('.token-variants-image-select-button').on('click', (event) => {
+      formBody.find('.token-variants-image-select-button').on('click', (event) => {
         const target = $(event.target).data('target');
-        game.modules
-          .get('token-variants')
-          .api.showArtSelect(html.find('[name="description"]').val(), {
-            searchType: 'Item',
-            callback: (imgSrc) => html.find(`[name="${target}"]`).val(imgSrc),
-          });
+        game.modules.get('token-variants').api.showArtSelect(formBody.find('[name="description"]').val(), {
+          searchType: 'Item',
+          callback: (imgSrc) => formBody.find(`[name="${target}"]`).val(imgSrc),
+        });
       });
     }
-
-    html.append(buttons);
-    await super.activateListeners(html);
-  }
-
-  get id() {
-    return `ambient-sound-custom-config-${this.object.id}`;
-  }
-
-  _getHeaderButtons() {
-    const buttons = super._getHeaderButtons();
-    return buttons;
   }
 }

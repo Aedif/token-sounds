@@ -1,11 +1,5 @@
-import {
-  MODULE_ID,
-  stopSounds,
-  playSounds,
-  refreshSoundPosition,
-  deleteToken,
-} from '../token-sounds.js';
-import AmbientSoundCustomConfig from '../config/ambientSoundCustomConfig.js';
+import { openCustomConfig } from '../config/ambientSoundCustomConfig.js';
+import { MODULE_ID, stopSounds, playSounds, refreshSoundPosition, deleteToken } from '../token-sounds.js';
 
 export function registerTokenHooks() {
   Hooks.on('canvasReady', () => {
@@ -78,21 +72,15 @@ export function registerTokenHooks() {
     if (!actor) return;
     const sounds = actor.getFlag(MODULE_ID, 'sounds');
     const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
-    if (!(game.user.isGM || allowPlayerEdit) && isEmpty(sounds)) return;
+    if (!(game.user.isGM || allowPlayerEdit) && foundry.utils.isEmpty(sounds)) return;
 
-    const playing = !isEmpty(getProperty(token, `flags.${MODULE_ID}.playing`));
+    const playing = !foundry.utils.isEmpty(foundry.utils.getProperty(token, `flags.${MODULE_ID}.playing`));
     const title = game.user.isGM ? 'Right-click to enable Player editing.' : '';
 
     const button = $(`
-      <div class="control-icon token-sounds ${
-        playing ? 'playing' : ''
-      }" data-action="token-sounds" title="${title}">
+      <div class="control-icon token-sounds ${playing ? 'playing' : ''}" data-action="token-sounds" title="${title}">
         <i class="toggle-edit fas fa-waveform-path"></i>
-        ${
-          allowPlayerEdit && game.user.isGM
-            ? '<i class="player-edit fa-solid fa-unlock-keyhole fa-2xs"></i>'
-            : ''
-        }
+        ${allowPlayerEdit && game.user.isGM ? '<i class="player-edit fa-solid fa-unlock-keyhole fa-2xs"></i>' : ''}
       </div>
     `);
     html.find('div.right').last().append(button);
@@ -142,9 +130,7 @@ async function _onButtonClick(event, token, hud) {
   wrapper
     .find('.sound.editable')
     .on('contextmenu', (event) => _onSoundRightClick(event, game.actors.get(token.actorId)));
-  wrapper
-    .find('.add-sound')
-    .on('click', (event) => _onAddSoundClick(event, game.actors.get(token.actorId)));
+  wrapper.find('.add-sound').on('click', (event) => _onAddSoundClick(event, game.actors.get(token.actorId)));
 
   const sounds = wrapper.find('.sound');
   sounds.on('click', (event) => _onSoundClick(event, token));
@@ -173,12 +159,7 @@ async function _onButtonClick(event, token, hud) {
   });
   sounds.on('drop', (event) => {
     const sound = $(event.target).closest('.sound');
-    _onSoundOrder(
-      draggedSoundId,
-      sound.data('soundId'),
-      game.actors.get(token.actorId),
-      sound.hasClass('drag-left')
-    );
+    _onSoundOrder(draggedSoundId, sound.data('soundId'), game.actors.get(token.actorId), sound.hasClass('drag-left'));
 
     $(event.target).closest('.sound').removeClass('drag-left').removeClass('drag-right');
   });
@@ -190,15 +171,12 @@ function _onSoundRightClick(event, dataSource) {
   if (!dataSource) return;
   const soundId = $(event.target).closest('.sound').data('sound-id');
   const sound = (dataSource.getFlag(MODULE_ID, 'sounds') ?? {})[soundId];
-  if (sound) {
-    new AmbientSoundCustomConfig(sound, dataSource, false).render(true);
-  }
+  if (sound) openCustomConfig(sound, dataSource, false);
 }
 
 function _onAddSoundClick(event, dataSource) {
   event.stopPropagation();
-  if (!dataSource) return;
-  new AmbientSoundCustomConfig({}, dataSource, true).render(true);
+  if (dataSource) openCustomConfig({}, dataSource, true);
 }
 
 async function renderMenu(token) {
@@ -206,12 +184,13 @@ async function renderMenu(token) {
 
   const actor = game.actors.get(token.actorId);
   if (!actor) return;
-  const sounds = Object.values(deepClone(actor.getFlag(MODULE_ID, 'sounds') ?? {})).sort(
+  const sounds = Object.values(foundry.utils.deepClone(actor.getFlag(MODULE_ID, 'sounds') ?? {})).sort(
     (s1, s2) => (s1.sort ?? 0) - (s2.sort ?? 0)
   );
 
   sounds.forEach((s) => {
     s.playing = s.soundId in playing;
+    if (!s.img) s.img === 'icons/svg/sound.svg';
   });
 
   const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');

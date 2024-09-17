@@ -15,9 +15,11 @@ Hooks.on('init', () => {
     onChange: (val) => {
       SETTINGS.nonRepeat = val;
 
-      const isResponsibleGM = !game.users
-        .filter((user) => user.isGM && (user.active || user.isActive))
-        .some((other) => other.id < game.user.id);
+      const isResponsibleGM =
+        game.user.isGM &&
+        !game.users
+          .filter((user) => user.isGM && (user.active || user.isActive))
+          .some((other) => other.id < game.user.id);
 
       if (isResponsibleGM) {
         if (val.length) startTicker();
@@ -29,14 +31,34 @@ Hooks.on('init', () => {
   libWrapper.register(
     MODULE_ID,
     'AmbientSound.prototype.sync',
-    function (wrapped, ...args) {
-      let result = wrapped(...args);
+    async function (wrapped, ...args) {
+      let result = await wrapped(...args);
       if (this.sound && this.sound.playing && this.document.getFlag(MODULE_ID, 'autoGen')) {
         this.sound.loop = this.document.repeat;
       }
+
       return result;
     },
     'WRAPPER'
+  );
+
+  libWrapper.register(
+    MODULE_ID,
+    'AmbientSound.prototype._createSound',
+    function (wrapped, ...args) {
+      if (this.document.getFlag(MODULE_ID, 'autoGen')) {
+        const path = this.document.path;
+        if (!this.id || !path) return null;
+        return game.audio.create({
+          src: path,
+          context: new AudioContext(game.audio.environment),
+          singleton: false,
+        });
+      } else {
+        return wrapped(...args);
+      }
+    },
+    'MIXED'
   );
 
   registerTokenHooks();
@@ -195,21 +217,20 @@ export async function createSound(token, sound, setPosition = false) {
     return;
   }
 
-  const s = deepClone(sound);
+  const s = foundry.utils.deepClone(sound);
   if (!s.radius) s.radius = 30;
   s[`flags.${MODULE_ID}.autoGen`] = true;
 
   // Lets load the sound so that we can extract the duration from it.
   // Necessary on first time load, and when creating AmbientSound from another scene
-  const audio = game.audio.create({ src: s.path, preload: true });
+  const audio = game.audio.create({ src: s.path, preload: false });
   if (audio) {
-    if (!audio.loaded) {
-      if (audio.loading instanceof Promise) {
-        await audio.loading;
-      }
+    if (!audio.loaded && audio._state !== audio.constructor.STATES.LOADING) {
+      await audio.load();
     }
   }
 
+  console.log(s);
   const doc = (await token.parent.createEmbeddedDocuments('AmbientSound', [s]))[0];
 
   await token.update({ [`flags.${MODULE_ID}.attached.${sound.soundId}`]: doc.id });
@@ -244,8 +265,8 @@ export function refreshSoundPosition(token) {
 
   if (ambientSounds.length) {
     const center = {
-      x: token.x + (token.width * canvas.dimensions.size) / 2,
-      y: token.y + (token.height * canvas.dimensions.size) / 2,
+      x: token._source.x + (token.width * canvas.dimensions.size) / 2,
+      y: token._source.y + (token.height * canvas.dimensions.size) / 2,
     };
 
     const updates = [];
