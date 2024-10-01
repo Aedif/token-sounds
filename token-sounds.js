@@ -1,3 +1,4 @@
+import { SoundOfToken } from './scripts/api.js';
 import { registerTokenHooks } from './scripts/tokenHooks.js';
 
 export const MODULE_ID = 'aedifs-token-sounds';
@@ -88,6 +89,8 @@ Hooks.on('init', () => {
       if (scene) setNonRepeatTicker(scene.get(args.tokenId), args.soundId, args.endTime);
     }
   });
+
+  globalThis.SoundOfToken = SoundOfToken;
 });
 
 Hooks.on('ready', () => {

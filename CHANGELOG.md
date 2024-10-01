@@ -1,3 +1,15 @@
+# 2.1.0
+
+**API**
+
+- `SoundOfToken.play(...)`
+- `SoundOfToken.stop(...);`
+  - Plays/stops the sound assigned to the token actor matching the provided sound description
+  - e.g. `SoundOfToken.play(_token, 'Drums');`
+  - e.g. `SoundOfToken.stop(_token, 'Drums');`
+  - First parameter accepts token id, token placeable, token document, or actor
+  - Second parameter accepts the sound description which will be used to match the sound on the actor
+
 # 2.0.0
 
 - v12 support
