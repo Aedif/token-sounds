@@ -22,3 +22,13 @@ Both GMs and players can play these sounds but players will require an active GM
 Players can create and edit sounds on their tokens if editing is toggled on by the GM by Right-clicking the Token HUD button
 
 ![Player Permissions](https://github.com/Aedif/token-sounds/assets/7693704/98f69007-a358-49c0-8323-ad8021ca2456)
+
+## API
+
+`SoundOfToken.play(token, description)`
+- Plays a sound on the token matching the passed in description
+- `token` can be a placeable, TokenDocument, Token ID string, or an Actor
+
+`SoundOfToken.stop(token, description)`
+- Stops playback of a sound matching the passed in description
+- `token` can be a placeable, TokenDocument, Token ID string, or an Actor
