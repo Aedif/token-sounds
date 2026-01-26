@@ -40,7 +40,7 @@ Hooks.on('init', () => {
 
       return result;
     },
-    'WRAPPER'
+    'WRAPPER',
   );
 
   libWrapper.register(
@@ -59,7 +59,7 @@ Hooks.on('init', () => {
         return wrapped(...args);
       }
     },
-    'MIXED'
+    'MIXED',
   );
 
   registerTokenHooks();
@@ -165,7 +165,7 @@ function deleteSoundDocument(doc, token, soundId) {
 
 function endNonRepeatEarly(tokenId, soundId, sceneId) {
   const newRepeat = SETTINGS.nonRepeat.filter(
-    (o) => o.soundId !== soundId || o.tokenId !== tokenId || o.sceneId !== sceneId
+    (o) => o.soundId !== soundId || o.tokenId !== tokenId || o.sceneId !== sceneId,
   );
   if (SETTINGS.nonRepeat.length !== newRepeat.length) {
     game.settings.set(MODULE_ID, 'nonRepeat', newRepeat);
@@ -233,7 +233,6 @@ export async function createSound(token, sound, setPosition = false) {
     }
   }
 
-  console.log(s);
   const doc = (await token.parent.createEmbeddedDocuments('AmbientSound', [s]))[0];
 
   await token.update({ [`flags.${MODULE_ID}.attached.${sound.soundId}`]: doc.id });

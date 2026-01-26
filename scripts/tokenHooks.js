@@ -75,25 +75,38 @@ export function registerTokenHooks() {
     if (!(game.user.isGM || allowPlayerEdit) && foundry.utils.isEmpty(sounds)) return;
 
     const playing = !foundry.utils.isEmpty(foundry.utils.getProperty(token, `flags.${MODULE_ID}.playing`));
-    const title = game.user.isGM ? 'Right-click to enable Player editing.' : '';
 
-    const button = $(`
-      <div class="control-icon token-sounds ${playing ? 'playing' : ''}" data-action="token-sounds" title="${title}">
-        <i class="toggle-edit fas fa-waveform-path"></i>
-        ${allowPlayerEdit && game.user.isGM ? '<i class="player-edit fa-solid fa-unlock-keyhole fa-2xs"></i>' : ''}
-      </div>
-    `);
-    html.find('div.right').last().append(button);
-    button.click((event) => _onButtonClick(event, token, hud));
+    // Create HUD Button
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.classList.add('control-icon', 'token-sounds');
+    if (playing) button.classList.add('playing');
+    button.dataset.action = 'token-sounds';
+    button.dataset.tooltip = game.user.isGM ? 'Right-click to enable Player editing.' : '';
+
+    const icon = document.createElement('i');
+    icon.classList.add('toggle-edit', 'fas', 'fa-waveform-path');
+    button.appendChild(icon);
+
+    if (allowPlayerEdit && game.user.isGM) {
+      const icon = document.createElement('i');
+      icon.classList.add('player-edit', 'fa-solid', 'fa-unlock-keyhole', 'fa-2xs');
+      button.appendChild(icon);
+    }
+
+    html.querySelector('div.right').appendChild(button);
+
+    button.addEventListener('click', (event) => _onButtonClick(event, hud));
+
     if (game.user.isGM) {
-      button.find('.toggle-edit').contextmenu((event) => {
+      button.addEventListener('contextmenu', () => {
         const allowPlayerEdit = actor.getFlag(MODULE_ID, 'allowPlayerEdit');
         actor.setFlag(MODULE_ID, 'allowPlayerEdit', !allowPlayerEdit);
       });
     }
 
     if (hud._soundBoard.id === hud.object.id && hud._soundBoard.active) {
-      button.trigger('click');
+      button.dispatchEvent(new Event('click'));
     }
   });
 }
@@ -102,13 +115,12 @@ export function registerTokenHooks() {
 // Token HUD functions
 //
 
-async function _onButtonClick(event, token, hud) {
+async function _onButtonClick(event, hud) {
   const button = $(event.target).closest('.control-icon');
-  token = canvas.tokens.placeables.find((t) => t.id === token._id)?.document;
+  const token = hud.object.document;
 
-  // De-activate 'Status Effects'
-  button.closest('div.right').find('div.control-icon.effects').removeClass('active');
-  button.closest('div.right').find('.status-effects').removeClass('active');
+  // De-activate other palettes
+  canvas.tokens.hud.togglePalette();
 
   // Toggle menu
   button.toggleClass('active');
@@ -139,29 +151,36 @@ async function _onButtonClick(event, token, hud) {
   // Dragging and sorting sounds
   let draggedSoundId;
   sounds.on('dragstart', (event) => {
-    draggedSoundId = $(event.target).closest('.sound').data('soundId');
+    draggedSoundId = event.target.closest('.sound').dataset.soundId;
   });
   sounds.on('dragover', (event) => {
-    const sound = $(event.target).closest('.sound');
-    if (sound.data('soundId') === draggedSoundId) return;
+    const sound = event.target.closest('.sound');
+    if (sound.dataset.soundId === draggedSoundId) return;
 
     // Determine if mouse is hovered to the left or right
     var domRect = event.currentTarget.getBoundingClientRect();
     let prc = event.offsetX / domRect.width;
     if (prc < 0.2) {
-      sound.removeClass('drag-right').addClass('drag-left');
+      sound.classList.remove('drag-right');
+      sound.classList.add('drag-left');
     } else {
-      sound.removeClass('drag-left').addClass('drag-right');
+      sound.classList.remove('drag-left');
+      sound.classList.add('drag-right');
     }
   });
   sounds.on('dragleave', (event) => {
-    $(event.target).closest('.sound').removeClass('drag-left').removeClass('drag-right');
+    event.target.closest('.sound').classList.remove('drag-left', 'drag-right');
   });
   sounds.on('drop', (event) => {
-    const sound = $(event.target).closest('.sound');
-    _onSoundOrder(draggedSoundId, sound.data('soundId'), game.actors.get(token.actorId), sound.hasClass('drag-left'));
+    const sound = event.target.closest('.sound');
+    _onSoundOrder(
+      draggedSoundId,
+      sound.dataset.soundId,
+      game.actors.get(token.actorId),
+      sound.classList.contains('drag-left'),
+    );
 
-    $(event.target).closest('.sound').removeClass('drag-left').removeClass('drag-right');
+    sound.classList.remove('drag-left', 'drag-right');
   });
   // End of dragging and sorting sounds
   // ===================================
@@ -185,7 +204,7 @@ async function renderMenu(token) {
   const actor = game.actors.get(token.actorId);
   if (!actor) return;
   const sounds = Object.values(foundry.utils.deepClone(actor.getFlag(MODULE_ID, 'sounds') ?? {})).sort(
-    (s1, s2) => (s1.sort ?? 0) - (s2.sort ?? 0)
+    (s1, s2) => (s1.sort ?? 0) - (s2.sort ?? 0),
   );
 
   sounds.forEach((s) => {
@@ -198,10 +217,10 @@ async function renderMenu(token) {
   const editable = game.user.isGM || allowPlayerEdit;
 
   const menu = $(
-    await renderTemplate('modules/aedifs-token-sounds/templates/soundBoard.html', {
+    await foundry.applications.handlebars.renderTemplate('modules/aedifs-token-sounds/templates/soundBoard.html', {
       sounds,
       editable,
-    })
+    }),
   );
   return menu;
 }
@@ -210,7 +229,7 @@ function _onSoundClick(event, token) {
   event.stopPropagation();
   if (!token) return;
 
-  const soundId = $(event.target).closest('.sound').data('sound-id');
+  const soundId = event.target.closest('.sound').dataset.soundId;
   if (!soundId) return;
 
   const playing = (token.getFlag(MODULE_ID, 'playing') ?? {})[soundId];
@@ -233,7 +252,7 @@ function _onSoundOrder(sourceId, targetId, actor, sortBefore = false) {
   if (!(source && target)) return;
 
   const siblings = sounds.filter((s) => s.soundId !== sourceId);
-  const result = SortingHelpers.performIntegerSort(source, { target, siblings, sortBefore });
+  const result = foundry.utils.performIntegerSort(source, { target, siblings, sortBefore });
 
   if (result.length) {
     const update = {};

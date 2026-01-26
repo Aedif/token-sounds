@@ -4,7 +4,7 @@ export async function openCustomConfig(data, dataSource, create = true) {
   return new AmbientSoundCustomConfig(data, dataSource, create).render(true);
 }
 
-class AmbientSoundCustomConfig extends AmbientSoundConfig {
+class AmbientSoundCustomConfig extends foundry.applications.sheets.AmbientSoundConfig {
   constructor(data, dataSource, create = true) {
     const sound = new AmbientSoundDocument(foundry.utils.deepClone(data), { parent: canvas.scene });
     const options = {
@@ -15,17 +15,16 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
       },
     };
 
-    // // Trick the sheet into being editable by players
-    // Object.defineProperty(sound, 'isOwner', {
-    //   get: function () {
-    //     return true;
-    //   },
-    // });
-
     super(options);
     this.create = create;
     this.soundData = data;
     this.dataSource = dataSource;
+  }
+
+  /** @override */
+  get isEditable() {
+    // Trick the sheet into being editable by players
+    return true;
   }
 
   static async submit() {
@@ -54,18 +53,18 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
   }
 
   _onRender(...args) {
-    const html = $(this.element);
-
     // Remove unnecessary controls
-    html.find('[name="x"], [name="y"]').closest('.form-group').remove();
+    this.element.querySelectorAll('[name="x"], [name="y"]').forEach((el) => el.closest('.form-group').remove());
 
-    this.insertAdditionalControls(html);
+    this.insertAdditionalControls();
 
-    html.find('.file-picker[data-target="img"]').on('click', () => {
-      new FilePicker({
+    this.element.querySelector('.file-picker[data-target="img"]').addEventListener('click', () => {
+      new foundry.applications.apps.FilePicker.implementation({
         type: 'image',
         callback: (path) => {
-          html.find('[name="img"]').val(path).trigger('change');
+          const el = this.element.querySelector('[name="img"]');
+          el.value = path;
+          el.dispatchEvent(new Event('change'));
         },
       }).render();
     });
@@ -73,15 +72,17 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
     return super._onRender(...args);
   }
 
-  _getSubmitData() {
-    const form = this.element;
-    const formData = new FormDataExtended(form);
-    const submitData = foundry.utils.expandObject(formData.object);
-    return submitData;
+  /** @override */
+  async _onSubmitForm(formConfig, event) {
+    event.preventDefault();
+    await this.close({ submitted: true });
   }
 
-  _getFormBody(html) {
-    return html.find('.form-body');
+  _getSubmitData() {
+    const form = this.element;
+    const formData = new foundry.applications.ux.FormDataExtended(form);
+    const submitData = foundry.utils.expandObject(formData.object);
+    return submitData;
   }
 
   async _prepareContext(options) {
@@ -115,20 +116,15 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
     return context;
   }
 
-  async insertAdditionalControls(html) {
+  async insertAdditionalControls() {
     const icon = this.soundData.img ?? 'icons/svg/sound.svg';
     const soundId = this.soundData.soundId ?? foundry.utils.randomID();
     const description = this.soundData.description ?? '';
     const repeat = this.soundData.repeat;
 
-    let tvaButton = '';
-    if (game.modules.get('token-variants')?.active) {
-      tvaButton = `<button class="token-variants-image-select-button" type="button" data-type="imagevideo" data-target="img" title="Select variant"><i class="fas fa-images"></i></button>`;
-    }
-
     // Insert img, description and hidden id fields
-    const formBody = this._getFormBody(html);
-    formBody.prepend(`
+    const standardForm = this.element.querySelector('.standard-form');
+    $(standardForm).prepend(`
   <fieldset>
     <legend>Sound of Token</legend>
     <input type="text" name="soundId" value="${soundId}" hidden>
@@ -136,7 +132,6 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
       <label>Icon</label>
       <div class="form-fields">
           <input type="text" name="img" value="${icon}">
-          ${tvaButton}
           <button type="button" class="file-picker" data-type="image" data-target="img" title="Browse Files" tabindex="-1"><i class="fas fa-file-import fa-fw"></i></button>
       </div>
     </div>
@@ -154,15 +149,5 @@ class AmbientSoundCustomConfig extends AmbientSoundConfig {
     </div>   
   </fieldset>
 `);
-
-    if (tvaButton) {
-      formBody.find('.token-variants-image-select-button').on('click', (event) => {
-        const target = $(event.target).data('target');
-        game.modules.get('token-variants').api.showArtSelect(formBody.find('[name="description"]').val(), {
-          searchType: 'Item',
-          callback: (imgSrc) => formBody.find(`[name="${target}"]`).val(imgSrc),
-        });
-      });
-    }
   }
 }
